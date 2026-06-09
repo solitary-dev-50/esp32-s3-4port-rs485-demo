@@ -91,7 +91,6 @@ The current web demo uses a fixed verified device setup. It does not provide dyn
 src/        Firmware source code
 data/       Local web demo console
 docs/       Interface, development, and troubleshooting documents
-marketing/  Static product-detail page draft
 ```
 
 ## Documentation
@@ -100,6 +99,7 @@ marketing/  Static product-detail page draft
 - [Development Guide](docs/DEVELOPMENT_GUIDE.md)
 - [Troubleshooting Guide](docs/TROUBLESHOOTING.md)
 - [中文避坑指南](docs/TROUBLESHOOTING_zh.md)
+- [Verification Log](docs/VERIFICATION_LOG.md)
 
 ## Safety Notes
 
@@ -123,4 +123,4 @@ Possible future work or customization can include new Modbus devices, web dashbo
 
 ## License
 
-License: TBD
+This project is released under the [MIT License](LICENSE).

@@ -91,7 +91,6 @@ data/
 src/        固件源码
 data/       本地网页演示控制台
 docs/       接口、开发和排查文档
-marketing/  静态商品详情页草稿
 ```
 
 ## 文档
@@ -100,6 +99,7 @@ marketing/  静态商品详情页草稿
 - [开发说明](docs/DEVELOPMENT_GUIDE.md)
 - [英文排查指南](docs/TROUBLESHOOTING.md)
 - [中文避坑指南](docs/TROUBLESHOOTING_zh.md)
+- [验证日志](docs/VERIFICATION_LOG.md)
 
 ## 安全说明
 
@@ -123,4 +123,4 @@ marketing/  静态商品详情页草稿
 
 ## 许可证
 
-License: TBD
+本项目采用 [MIT License](LICENSE)。
