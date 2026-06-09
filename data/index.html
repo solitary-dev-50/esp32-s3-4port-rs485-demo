@@ -1,0 +1,836 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JISHI RS485 Controller Demo Console</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: Arial, "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+            color: #1f2937;
+        }
+
+        .container {
+            max-width: 1360px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: 14px;
+            box-shadow: 0 16px 34px rgba(0, 0, 0, 0.16);
+            overflow: hidden;
+        }
+
+        .header {
+            min-height: 72px;
+            background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%);
+            color: #fff;
+            padding: 10px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .brand-title {
+            font-size: 2.0em;
+            line-height: 1.05;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-shadow: 1px 2px 4px rgba(0, 0, 0, 0.25);
+            white-space: nowrap;
+        }
+
+        .brand-subtitle {
+            font-size: 1.0em;
+            margin-top: 4px;
+            opacity: 0.92;
+        }
+
+        .header-badges {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .badge {
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.26);
+            border-radius: 999px;
+            padding: 6px 11px;
+            font-size: 0.86em;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .badge.ok { background: rgba(255, 255, 255, 0.92); color: #2e7d32; }
+        .badge.warn { background: rgba(255, 193, 7, 0.95); color: #2d2d2d; }
+        .badge.err { background: rgba(244, 67, 54, 0.95); color: #fff; }
+
+        .lang-toggle {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.26);
+            border-radius: 999px;
+            padding: 3px;
+        }
+
+        .lang-btn {
+            border: none;
+            border-radius: 999px;
+            padding: 5px 10px;
+            cursor: pointer;
+            color: #fff;
+            background: transparent;
+            font-weight: 900;
+            font-size: 0.82em;
+            font-family: inherit;
+        }
+
+        .lang-btn.active {
+            background: #fff;
+            color: #2e7d32;
+        }
+
+        .content { padding: 12px; }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .device-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 14px;
+            min-height: 188px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.10);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .device-card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 6px;
+            height: 100%;
+            background: #4caf50;
+        }
+
+        .device-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .port-title {
+            font-size: 1.34em;
+            font-weight: 850;
+            color: #111827;
+            line-height: 1.2;
+        }
+
+        .device-name {
+            margin-top: 3px;
+            font-size: 1.02em;
+            font-weight: 700;
+            color: #374151;
+        }
+
+        .addr-pill {
+            border-radius: 999px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 6px 10px;
+            font-size: 0.9em;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .online-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-size: 0.96em;
+            color: #4b5563;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #9ca3af;
+            box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.16);
+        }
+
+        .dot.online {
+            background: #4caf50;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.18);
+        }
+
+        .dot.offline {
+            background: #f44336;
+            box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.16);
+        }
+
+        .sensor-values {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .metric {
+            background: linear-gradient(135deg, #f5f7fa 0%, #dbe5f2 100%);
+            border-radius: 10px;
+            padding: 12px 8px;
+            text-align: center;
+        }
+
+        .metric-label {
+            color: #5f6b7a;
+            font-size: 0.94em;
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            color: #35a853;
+            font-size: 2.35em;
+            line-height: 1.0;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-unit {
+            color: #7b8794;
+            font-size: 0.9em;
+            margin-top: 3px;
+        }
+
+        .single-relay-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .single-status {
+            grid-column: 1 / span 2;
+            background: #f3f6fb;
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+            font-weight: 800;
+            color: #334155;
+        }
+
+        .relay-action {
+            border: none;
+            border-radius: 10px;
+            padding: 14px 10px;
+            font-size: 1.05em;
+            font-weight: 850;
+            cursor: pointer;
+            color: #fff;
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.18);
+            transition: transform 0.15s ease, opacity 0.15s ease;
+            font-family: inherit;
+        }
+
+        .relay-action:hover { transform: translateY(-1px); }
+        .relay-action:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+        .relay-action.on { background: #43a047; }
+        .relay-action.off { background: #e53935; }
+        .single-relay-toggle { grid-column: 1 / span 2; }
+
+        .relay-mini-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .relay-button {
+            border: none;
+            border-radius: 8px;
+            min-height: 35px;
+            padding: 5px 3px;
+            background: #ef4444;
+            color: #fff;
+            font-size: 0.78em;
+            font-weight: 850;
+            cursor: pointer;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.16);
+            font-family: inherit;
+        }
+
+        .relay-button.on { background: #4caf50; }
+        .relay-button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+        .relay-tools {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .tool-btn {
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: #fff;
+            padding: 8px 12px;
+            font-size: 0.9em;
+            font-weight: 800;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .tool-btn.secondary { background: #64748b; }
+        .tool-btn.danger { background: #dc2626; }
+
+        .compact-log {
+            margin-top: 12px;
+            background: #111827;
+            color: #e5e7eb;
+            border-radius: 10px;
+            height: 78px;
+            overflow-y: hidden;
+            padding: 8px 12px;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 0.80em;
+            line-height: 1.45;
+        }
+
+        .log-title {
+            color: #86efac;
+            font-family: Arial, "Microsoft YaHei", sans-serif;
+            font-weight: 800;
+            margin-bottom: 2px;
+        }
+
+        .log-line .ok { color: #86efac; }
+        .log-line .err { color: #fca5a5; }
+        .log-line .tx { color: #7dd3fc; }
+        .log-line .ts { color: #9ca3af; }
+
+        .footer-bar {
+            padding: 8px 14px;
+            background: #263238;
+            color: #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 0.88em;
+            font-family: Consolas, "Microsoft YaHei", monospace;
+        }
+
+        .status-online { color: #86efac; font-weight: 900; }
+        .status-offline { color: #fca5a5; font-weight: 900; }
+
+        @media (max-width: 900px) {
+            .header { align-items: flex-start; flex-direction: column; }
+            .brand-title { font-size: 1.6em; }
+            .dashboard { grid-template-columns: 1fr; }
+            .relay-mini-grid { grid-template-columns: repeat(4, 1fr); }
+            .footer-bar { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <div class="brand-title">JISHI RS485 Controller</div>
+                <div class="brand-subtitle" data-i18n="subtitle">4-Channel RS485 Data & Control Demo</div>
+            </div>
+            <div class="header-badges">
+                <div class="lang-toggle">
+                    <button class="lang-btn active" id="lang-en" onclick="setLanguage('en')">EN</button>
+                    <button class="lang-btn" id="lang-zh" onclick="setLanguage('zh')">中文</button>
+                </div>
+                <span class="badge" id="connection-badge" data-i18n="webOffline">Web Offline</span>
+                <span class="badge ok" data-i18n="demoBadge">4-Port RS485 Demo</span>
+                <span class="badge"><span data-i18n="ipLabel">IP</span>: <span id="esp32-ip">...</span></span>
+                <span class="badge"><span data-i18n="refreshLabel">Updated</span>: <span id="last-update">--:--:--</span></span>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="dashboard">
+                <div class="device-card">
+                    <div class="device-head">
+                        <div>
+                            <div class="port-title">RS485-1</div>
+                            <div class="device-name" data-i18n="singleRelayName">Single Relay Tester</div>
+                        </div>
+                        <div class="addr-pill"><span data-i18n="addrLabel">Addr</span>: 8</div>
+                    </div>
+                    <div class="online-row">
+                        <span class="dot online" id="single-relay-dot"></span>
+                        <span id="single-relay-online" data-i18n="statusReading">Reading status</span>
+                    </div>
+                    <div class="single-relay-panel">
+                        <div class="single-status" id="single-relay-state">Y1: --</div>
+                        <button class="relay-action single-relay-toggle off" id="single-relay-action" onclick="toggleSingleRelay()" data-i18n="y1On">Y1 ON</button>
+                    </div>
+                </div>
+
+                <div class="device-card">
+                    <div class="device-head">
+                        <div>
+                            <div class="port-title">RS485-2</div>
+                            <div class="device-name" data-i18n="multiRelayName">16-Channel Relay Controller</div>
+                        </div>
+                        <div class="addr-pill"><span data-i18n="addrLabel">Addr</span>: 20</div>
+                    </div>
+                    <div class="online-row">
+                        <span class="dot online" id="multi-relay-dot"></span>
+                        <span data-i18n="relayStatusControl">Relay status / control</span>
+                    </div>
+                    <div class="relay-mini-grid" id="relay-grid"></div>
+                    <div class="relay-tools">
+                        <button class="tool-btn" onclick="refreshStatus()" data-i18n="refreshBtn">Refresh</button>
+                        <button class="tool-btn secondary" onclick="toggleAllRelays(true)" data-i18n="allOnBtn">All ON</button>
+                        <button class="tool-btn danger" onclick="toggleAllRelays(false)" data-i18n="allOffBtn">All OFF</button>
+                    </div>
+                </div>
+
+                <div class="device-card">
+                    <div class="device-head">
+                        <div>
+                            <div class="port-title">RS485-3</div>
+                            <div class="device-name" data-i18n="sensor1Name">Temp & Humidity Sensor 1</div>
+                        </div>
+                        <div class="addr-pill"><span data-i18n="addrLabel">Addr</span>: 3</div>
+                    </div>
+                    <div class="online-row">
+                        <span class="dot" id="sensor1-dot"></span>
+                        <span id="sensor1-online" data-i18n="statusReading">Reading status</span>
+                    </div>
+                    <div class="sensor-values">
+                        <div class="metric">
+                            <div class="metric-label" data-i18n="temperature">Temperature</div>
+                            <div class="metric-value" id="sensor1-temp">--.-</div>
+                            <div class="metric-unit">℃</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label" data-i18n="humidity">Humidity</div>
+                            <div class="metric-value" id="sensor1-humidity">--.-</div>
+                            <div class="metric-unit">%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="device-card">
+                    <div class="device-head">
+                        <div>
+                            <div class="port-title">RS485-4</div>
+                            <div class="device-name" data-i18n="sensor2Name">Temp & Humidity Sensor 2</div>
+                        </div>
+                        <div class="addr-pill"><span data-i18n="addrLabel">Addr</span>: 6</div>
+                    </div>
+                    <div class="online-row">
+                        <span class="dot" id="sensor2-dot"></span>
+                        <span id="sensor2-online" data-i18n="statusReading">Reading status</span>
+                    </div>
+                    <div class="sensor-values">
+                        <div class="metric">
+                            <div class="metric-label" data-i18n="temperature">Temperature</div>
+                            <div class="metric-value" id="sensor2-temp">--.-</div>
+                            <div class="metric-unit">℃</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label" data-i18n="humidity">Humidity</div>
+                            <div class="metric-value" id="sensor2-humidity">--.-</div>
+                            <div class="metric-unit">%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="compact-log">
+                <div class="log-title" data-i18n="recentLog">Recent Operations / Communication</div>
+                <div id="log-body"></div>
+            </div>
+        </div>
+
+        <div class="footer-bar">
+            <div><span data-i18n="connectionLabel">Connection</span>: <span id="connection-status" class="status-offline">OFFLINE</span></div>
+            <div data-i18n="demoGoal">Demo: 4 RS485 devices online · 2 relay ports · 2 temperature & humidity sensors · local buzzer / alarm LED self-test</div>
+        </div>
+    </div>
+
+    <script>
+        const I18N = {
+            en: {
+                subtitle: '4-Channel RS485 Data & Control Demo',
+                webOnline: 'Web Online',
+                webOffline: 'Web Offline',
+                demoBadge: '4-Port RS485 Demo',
+                ipLabel: 'IP',
+                refreshLabel: 'Updated',
+                addrLabel: 'Addr',
+                singleRelayName: 'Single Relay Tester',
+                multiRelayName: '16-Channel Relay Controller',
+                sensor1Name: 'Temp & Humidity Sensor 1',
+                sensor2Name: 'Temp & Humidity Sensor 2',
+                statusReading: 'Reading status',
+                onlineDataNormal: 'Online, data normal',
+                offlineOrNoUpdate: 'Offline or no update',
+                onlineStatusRead: 'Online, status read',
+                offlineOrNotConnected: 'Offline or not connected',
+                relayStatusControl: 'Relay status / control',
+                y1On: 'Y1 ON',
+                y1Off: 'Y1 OFF',
+                relayOn: 'ON',
+                relayOff: 'OFF',
+                relayUnknown: '--',
+                refreshBtn: 'Refresh',
+                allOnBtn: 'All ON',
+                allOffBtn: 'All OFF',
+                temperature: 'Temperature',
+                humidity: 'Humidity',
+                recentLog: 'Recent Operations / Communication',
+                connectionLabel: 'Connection',
+                demoGoal: 'Demo: 4 RS485 devices online · 2 relay ports · 2 temperature & humidity sensors · local buzzer / alarm LED self-test',
+                cmdSent: 'command sent',
+                controlFailed: 'control failed',
+                busyRetry: 'system busy, retry later',
+                requestFailed: 'request failed',
+                networkError: 'network error',
+                batchOn: 'All ON command',
+                batchOff: 'All OFF command',
+                batchDoneOn: 'All ON complete',
+                batchDoneOff: 'All OFF complete',
+                manualRefresh: 'Manual refresh'
+            },
+            zh: {
+                subtitle: '4路 RS485 采集与控制演示台',
+                webOnline: '网页在线',
+                webOffline: '网页离线',
+                demoBadge: '4路 RS485 演示',
+                ipLabel: 'IP',
+                refreshLabel: '刷新',
+                addrLabel: '地址',
+                singleRelayName: '单路继电器测试器',
+                multiRelayName: '多路继电器控制器',
+                sensor1Name: '温湿度传感器 1',
+                sensor2Name: '温湿度传感器 2',
+                statusReading: '状态读取中',
+                onlineDataNormal: '在线，数据正常',
+                offlineOrNoUpdate: '离线或未更新',
+                onlineStatusRead: '在线，状态已读取',
+                offlineOrNotConnected: '离线或未连接',
+                relayStatusControl: '16路继电器状态 / 控制',
+                y1On: 'Y1 开',
+                y1Off: 'Y1 关',
+                relayOn: '开',
+                relayOff: '关',
+                relayUnknown: '--',
+                refreshBtn: '刷新',
+                allOnBtn: '全开',
+                allOffBtn: '全关',
+                temperature: '温度',
+                humidity: '湿度',
+                recentLog: '最近操作 / 通信状态',
+                connectionLabel: '连接状态',
+                demoGoal: '演示目标：四路RS485设备在线 · 两路继电器 · 两路温湿度传感器 · 本地声光自检',
+                cmdSent: 'command sent',
+                controlFailed: '控制失败',
+                busyRetry: '系统忙，请稍后再试',
+                requestFailed: '请求失败',
+                networkError: '网络异常',
+                batchOn: '全开命令',
+                batchOff: '全关命令',
+                batchDoneOn: '全开完成',
+                batchDoneOff: '全关完成',
+                manualRefresh: '手动刷新'
+            }
+        };
+
+        const CONFIG = {
+            ESP32_IP: window.location.hostname || '192.168.3.66',
+            UPDATE_INTERVAL: 2000,
+            RELAY_COUNT: 16,
+            MAX_LOG: 5
+        };
+
+        let currentLang = localStorage.getItem('jishi_rs485_lang') || 'en';
+
+        let systemState = {
+            sensors: {
+                sensor1: { temp: 0, humidity: 0, online: false },
+                sensor2: { temp: 0, humidity: 0, online: false }
+            },
+            singleRelay: false,
+            multiRelays: new Array(CONFIG.RELAY_COUNT).fill(false),
+            connected: false
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeRelayGrid();
+            updateESP32IP();
+            applyLanguage();
+            fetchSystemStatus();
+            setInterval(fetchSystemStatus, CONFIG.UPDATE_INTERVAL);
+        });
+
+        function t(key) {
+            return (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || key;
+        }
+
+        function setLanguage(lang) {
+            currentLang = lang === 'zh' ? 'zh' : 'en';
+            localStorage.setItem('jishi_rs485_lang', currentLang);
+            applyLanguage();
+            updateConnectionStatus(systemState.connected);
+            updateSensorDisplays();
+            updateRelayDisplays();
+        }
+
+        function applyLanguage() {
+            document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : 'en';
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                el.textContent = t(key);
+            });
+            document.getElementById('lang-en').classList.toggle('active', currentLang === 'en');
+            document.getElementById('lang-zh').classList.toggle('active', currentLang === 'zh');
+        }
+
+        function initializeRelayGrid() {
+            const grid = document.getElementById('relay-grid');
+            grid.innerHTML = '';
+            for (let i = 1; i <= CONFIG.RELAY_COUNT; i++) {
+                const button = document.createElement('button');
+                button.className = 'relay-button';
+                button.id = 'relay-' + i;
+                button.textContent = 'Y' + i;
+                button.onclick = () => toggleRelay(i);
+                grid.appendChild(button);
+            }
+        }
+
+        function updateESP32IP() {
+            document.getElementById('esp32-ip').textContent = CONFIG.ESP32_IP;
+        }
+
+        async function fetchSystemStatus() {
+            try {
+                const response = await fetch('http://' + CONFIG.ESP32_IP + '/api/system/status');
+                if (response.ok) {
+                    const data = await response.json();
+
+                    if (data.canopy && data.canopy.temperature) {
+                        systemState.sensors.sensor1.temp = Number(data.canopy.temperature.value || 0);
+                        systemState.sensors.sensor1.humidity = Number(data.canopy.humidity.value || 0);
+                        systemState.sensors.sensor1.online = !!data.canopy.temperature.online;
+                    }
+
+                    if (data.root_zone && data.root_zone.temperature) {
+                        systemState.sensors.sensor2.temp = Number(data.root_zone.temperature.value || 0);
+                        systemState.sensors.sensor2.humidity = Number(data.root_zone.humidity.value || 0);
+                        systemState.sensors.sensor2.online = !!data.root_zone.temperature.online;
+                    }
+
+                    if (data.relays && Array.isArray(data.relays)) {
+                        data.relays.forEach((relay, index) => {
+                            if (index < CONFIG.RELAY_COUNT) {
+                                systemState.multiRelays[index] = !!relay.state;
+                            }
+                        });
+                    }
+
+                    updateConnectionStatus(true);
+                    updateSensorDisplays();
+                    updateRelayDisplays();
+                    updateLastUpdateTime();
+                } else {
+                    updateConnectionStatus(false);
+                }
+            } catch (error) {
+                updateConnectionStatus(false);
+            }
+        }
+
+        async function toggleSingleRelay() {
+            const state = !systemState.singleRelay;
+            await controlSingleRelay(state);
+        }
+
+        async function controlSingleRelay(state) {
+            addLog('tx', 'RS485-1 Y1 ' + (state ? 'ON' : 'OFF'));
+            await sendRelayCommand('single', 1, state, 'RS485-1 Y1');
+        }
+
+        async function toggleRelay(relayId) {
+            const currentState = systemState.multiRelays[relayId - 1];
+            const newState = !currentState;
+            await sendRelayCommand('multi', relayId, newState, 'RS485-2 Y' + relayId);
+        }
+
+        async function sendRelayCommand(target, relayId, state, label) {
+            setRelayButtonsDisabled(true);
+            try {
+                const response = await fetch('http://' + CONFIG.ESP32_IP + '/api/control/relays', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ target: target, id: relayId, state: state })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        if (target === 'single') {
+                            systemState.singleRelay = state;
+                        } else {
+                            systemState.multiRelays[relayId - 1] = state;
+                        }
+                        addLog('ok', label + ' ' + (state ? 'ON' : 'OFF') + ' ' + t('cmdSent'));
+                    } else {
+                        addLog('err', label + ' ' + t('controlFailed'));
+                    }
+                } else if (response.status === 503) {
+                    addLog('err', label + ' ' + t('busyRetry'));
+                } else {
+                    addLog('err', label + ' ' + t('requestFailed'));
+                }
+            } catch (error) {
+                addLog('err', label + ' ' + t('networkError'));
+            } finally {
+                setRelayButtonsDisabled(false);
+                updateRelayDisplays();
+                setTimeout(fetchSystemStatus, 500);
+            }
+        }
+
+        async function toggleAllRelays(state) {
+            addLog('tx', 'RS485-2 ' + (state ? t('batchOn') : t('batchOff')));
+            setRelayButtonsDisabled(true);
+            for (let i = 1; i <= CONFIG.RELAY_COUNT; i++) {
+                try {
+                    const response = await fetch('http://' + CONFIG.ESP32_IP + '/api/control/relays', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ target: 'multi', id: i, state: state })
+                    });
+                    if (response.ok) {
+                        const result = await response.json();
+                        if (result.success) systemState.multiRelays[i - 1] = state;
+                    }
+                } catch (e) { }
+                await new Promise(r => setTimeout(r, 220));
+            }
+            setRelayButtonsDisabled(false);
+            updateRelayDisplays();
+            addLog('ok', 'RS485-2 ' + (state ? t('batchDoneOn') : t('batchDoneOff')));
+            setTimeout(fetchSystemStatus, 600);
+        }
+
+        function refreshStatus() {
+            fetchSystemStatus();
+            addLog('tx', t('manualRefresh'));
+        }
+
+        function setRelayButtonsDisabled(disabled) {
+            document.querySelectorAll('.relay-button, .relay-action, .tool-btn').forEach(btn => {
+                btn.disabled = disabled;
+            });
+        }
+
+        function updateSensorDisplays() {
+            updateOneSensor('sensor1', systemState.sensors.sensor1);
+            updateOneSensor('sensor2', systemState.sensors.sensor2);
+        }
+
+        function updateOneSensor(prefix, sensor) {
+            document.getElementById(prefix + '-temp').textContent = sensor.temp.toFixed(1);
+            document.getElementById(prefix + '-humidity').textContent = sensor.humidity.toFixed(1);
+
+            const dot = document.getElementById(prefix + '-dot');
+            const text = document.getElementById(prefix + '-online');
+            dot.className = 'dot ' + (sensor.online ? 'online' : 'offline');
+            text.textContent = sensor.online ? t('onlineDataNormal') : t('offlineOrNoUpdate');
+        }
+
+        function updateRelayDisplays() {
+            for (let i = 1; i <= CONFIG.RELAY_COUNT; i++) {
+                const button = document.getElementById('relay-' + i);
+                if (!button) continue;
+                const state = systemState.multiRelays[i - 1];
+                button.className = 'relay-button' + (state ? ' on' : '');
+                button.innerHTML = 'Y' + i + '<br>' + (state ? t('relayOn') : t('relayOff'));
+            }
+
+            const singleState = systemState.singleRelay;
+            document.getElementById('single-relay-state').textContent = 'Y1: ' + (singleState ? t('relayOn') : t('relayOff'));
+            const singleButton = document.getElementById('single-relay-action');
+            singleButton.className = 'relay-action single-relay-toggle ' + (singleState ? 'on' : 'off');
+            singleButton.textContent = singleState ? t('y1Off') : t('y1On');
+            document.getElementById('single-relay-online').textContent = systemState.connected ? t('onlineStatusRead') : t('offlineOrNotConnected');
+            document.getElementById('single-relay-dot').className = 'dot ' + (systemState.connected ? 'online' : 'offline');
+            document.getElementById('multi-relay-dot').className = 'dot ' + (systemState.connected ? 'online' : 'offline');
+        }
+
+        function updateConnectionStatus(connected) {
+            systemState.connected = connected;
+
+            const statusElement = document.getElementById('connection-status');
+            const badge = document.getElementById('connection-badge');
+
+            if (connected) {
+                statusElement.textContent = 'ONLINE';
+                statusElement.className = 'status-online';
+                badge.textContent = t('webOnline');
+                badge.className = 'badge ok';
+            } else {
+                statusElement.textContent = 'OFFLINE';
+                statusElement.className = 'status-offline';
+                badge.textContent = t('webOffline');
+                badge.className = 'badge err';
+            }
+        }
+
+        function updateLastUpdateTime() {
+            const now = new Date();
+            document.getElementById('last-update').textContent = now.toLocaleTimeString(currentLang === 'zh' ? 'zh-CN' : 'en-US', { hour12: false });
+        }
+
+        function addLog(type, msg) {
+            const body = document.getElementById('log-body');
+            const now = new Date();
+            const ts = now.toLocaleTimeString(currentLang === 'zh' ? 'zh-CN' : 'en-US', { hour12: false });
+            const cls = type === 'ok' ? 'ok' : type === 'err' ? 'err' : 'tx';
+            const line = document.createElement('div');
+            line.className = 'log-line';
+            line.innerHTML = '<span class="ts">' + ts + '</span> <span class="' + cls + '">' + escapeHtml(msg) + '</span>';
+            body.appendChild(line);
+            while (body.children.length > CONFIG.MAX_LOG) {
+                body.removeChild(body.firstChild);
+            }
+        }
+
+        function escapeHtml(text) {
+            return String(text).replace(/[&<>"]/g, function(ch) {
+                return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch];
+            });
+        }
+    </script>
+</body>
+</html>
