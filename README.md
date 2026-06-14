@@ -8,6 +8,8 @@ It is meant to prove the basic board functions in a clear, repeatable way: RS485
 
 It is not intended to be presented as a certified industrial PLC or a finished mass-production controller.
 
+Hardware available on Tindie: https://www.tindie.com/products/42608/
+
 ## What Is Included
 
 - ESP32-S3 firmware for the RS485 demo board
