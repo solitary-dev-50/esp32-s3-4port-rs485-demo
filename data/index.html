@@ -401,7 +401,7 @@
                     </div>
                     <div class="online-row">
                         <span class="dot online" id="multi-relay-dot"></span>
-                        <span data-i18n="relayStatusControl">Relay status / control</span>
+                        <span id="multi-relay-online" data-i18n="relayStatusControl">Relay status / control</span>
                     </div>
                     <div class="relay-mini-grid" id="relay-grid"></div>
                     <div class="relay-tools">
@@ -580,6 +580,7 @@
             },
             singleRelay: false,
             multiRelays: new Array(CONFIG.RELAY_COUNT).fill(false),
+            deviceOnline: {},
             connected: false
         };
 
@@ -647,6 +648,21 @@
                         systemState.sensors.sensor2.temp = Number(data.root_zone.temperature.value || 0);
                         systemState.sensors.sensor2.humidity = Number(data.root_zone.humidity.value || 0);
                         systemState.sensors.sensor2.online = !!data.root_zone.temperature.online;
+                    }
+
+                    systemState.deviceOnline = {};
+                    if (data.devices && Array.isArray(data.devices)) {
+                        data.devices.forEach(device => {
+                            const key = String(device.channel || '') + ':' + String(device.address || '');
+                            systemState.deviceOnline[key] = !!device.online;
+                        });
+
+                        if (systemState.deviceOnline['RS485-3:3'] !== undefined) {
+                            systemState.sensors.sensor1.online = systemState.deviceOnline['RS485-3:3'];
+                        }
+                        if (systemState.deviceOnline['RS485-4:6'] !== undefined) {
+                            systemState.sensors.sensor2.online = systemState.deviceOnline['RS485-4:6'];
+                        }
                     }
 
                     if (data.relays && Array.isArray(data.relays)) {
@@ -783,9 +799,22 @@
             const singleButton = document.getElementById('single-relay-action');
             singleButton.className = 'relay-action single-relay-toggle ' + (singleState ? 'on' : 'off');
             singleButton.textContent = singleState ? t('y1Off') : t('y1On');
-            document.getElementById('single-relay-online').textContent = systemState.connected ? t('onlineStatusRead') : t('offlineOrNotConnected');
-            document.getElementById('single-relay-dot').className = 'dot ' + (systemState.connected ? 'online' : 'offline');
-            document.getElementById('multi-relay-dot').className = 'dot ' + (systemState.connected ? 'online' : 'offline');
+            const singleOnline = isDeviceOnline('RS485-1:8');
+            const multiOnline = isDeviceOnline('RS485-2:20');
+            document.getElementById('single-relay-online').textContent = singleOnline ? t('onlineStatusRead') : t('offlineOrNotConnected');
+            document.getElementById('single-relay-dot').className = 'dot ' + (singleOnline ? 'online' : 'offline');
+            document.getElementById('multi-relay-dot').className = 'dot ' + (multiOnline ? 'online' : 'offline');
+            document.getElementById('multi-relay-online').textContent = multiOnline ? t('onlineStatusRead') : t('offlineOrNotConnected');
+        }
+
+        function isDeviceOnline(key) {
+            if (!systemState.connected) {
+                return false;
+            }
+            if (Object.prototype.hasOwnProperty.call(systemState.deviceOnline, key)) {
+                return systemState.deviceOnline[key];
+            }
+            return false;
         }
 
         function updateConnectionStatus(connected) {

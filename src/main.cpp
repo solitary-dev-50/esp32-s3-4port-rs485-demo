@@ -117,6 +117,14 @@ void rs485Flush(uint8_t ch) {
 // ===================================================================
 uint8_t current_device_index = 0;
 unsigned long last_request_time = 0;
+static const uint8_t DEVICE_OFFLINE_FAIL_THRESHOLD = 3;
+static const uint8_t DEVICE_RECOVERY_SUCCESS_THRESHOLD = 2;
+static const uint32_t OFFLINE_ALARM_REPEAT_MS = 5000;
+uint8_t device_fail_counts[16] = {0};
+uint8_t device_success_counts[16] = {0};
+bool device_offline_flags[16] = {false};
+bool offline_alarm_active = false;
+uint32_t last_offline_alarm_beep_ms = 0;
 
 AsyncWebServer server(WEB_SERVER_PORT);
 SemaphoreHandle_t modbusMutex = NULL;
@@ -135,6 +143,110 @@ bool controlRelayOnce(uint8_t channel, uint8_t address, int relayId, bool state)
 bool writeSingleCoilRaw(uint8_t slaveAddr, uint16_t coilAddress, bool state);
 bool writeHoldingRegRaw(uint8_t slaveAddr, uint16_t regAddress, uint16_t value);
 void processSerialCommand();
+void updateDeviceAlarmState(uint8_t deviceIndex, bool pollOk);
+void refreshOfflineAlarmOutput();
+void syncDeviceOnlineState(DeviceConfig_t& device, bool online);
+
+void playOfflineAlarmBeep() {
+    boardBuzzerBeep(2500, 120);
+    delay(80);
+    boardBuzzerBeep(2500, 120);
+}
+
+void playOfflineAlarmRepeatBeep() {
+    for (uint8_t i = 0; i < 3; i++) {
+        boardBuzzerBeep(2500, 120);
+        if (i < 2) {
+            delay(80);
+        }
+    }
+}
+
+void refreshOfflineAlarmOutput() {
+    bool anyOffline = false;
+    for (uint8_t i = 0; i < g_device_count; i++) {
+        if (device_offline_flags[i]) {
+            anyOffline = true;
+            break;
+        }
+    }
+
+    if (anyOffline && !offline_alarm_active) {
+        offline_alarm_active = true;
+        last_offline_alarm_beep_ms = millis();
+        boardSetAlarmLedColor(60, 0, 0);
+        playOfflineAlarmBeep();
+        Serial.println("[ALARM] Device offline warning active");
+    } else if (!anyOffline && offline_alarm_active) {
+        offline_alarm_active = false;
+        boardSetAlarmLedColor(0, 0, 0);
+        Serial.println("[ALARM] All devices recovered, warning cleared");
+    } else if (offline_alarm_active && millis() - last_offline_alarm_beep_ms >= OFFLINE_ALARM_REPEAT_MS) {
+        last_offline_alarm_beep_ms = millis();
+        boardSetAlarmLedColor(60, 0, 0);
+        playOfflineAlarmRepeatBeep();
+        Serial.println("[ALARM] Device offline warning still active");
+    }
+}
+
+void updateDeviceAlarmState(uint8_t deviceIndex, bool pollOk) {
+    if (deviceIndex >= g_device_count || deviceIndex >= 16) {
+        return;
+    }
+
+    DeviceConfig_t& device = g_devices[deviceIndex];
+
+    if (pollOk) {
+        device_fail_counts[deviceIndex] = 0;
+        if (device_success_counts[deviceIndex] < DEVICE_RECOVERY_SUCCESS_THRESHOLD) {
+            device_success_counts[deviceIndex]++;
+        }
+
+        if (device_offline_flags[deviceIndex] &&
+            device_success_counts[deviceIndex] >= DEVICE_RECOVERY_SUCCESS_THRESHOLD) {
+            device_offline_flags[deviceIndex] = false;
+            syncDeviceOnlineState(device, true);
+            boardBuzzerBeep(2500, 500);
+            Serial.printf("[ALARM][%s] %s recovered\n",
+                          getChannelName(device.channel),
+                          device.name);
+        }
+    } else {
+        device_success_counts[deviceIndex] = 0;
+        if (device_fail_counts[deviceIndex] < DEVICE_OFFLINE_FAIL_THRESHOLD) {
+            device_fail_counts[deviceIndex]++;
+        }
+
+        if (!device_offline_flags[deviceIndex] &&
+            device_fail_counts[deviceIndex] >= DEVICE_OFFLINE_FAIL_THRESHOLD) {
+            device_offline_flags[deviceIndex] = true;
+            syncDeviceOnlineState(device, false);
+            Serial.printf("[ALARM][%s] %s offline after %u failed polls\n",
+                          getChannelName(device.channel),
+                          device.name,
+                          DEVICE_OFFLINE_FAIL_THRESHOLD);
+        }
+    }
+
+    refreshOfflineAlarmOutput();
+}
+
+void syncDeviceOnlineState(DeviceConfig_t& device, bool online) {
+    if (device.type == DEVICE_SENSOR) {
+        SystemState_t state = getSystemState();
+        if (device.address == 3) {
+            updateSensorData(device.address,
+                             state.canopy_sensor.temperature,
+                             state.canopy_sensor.humidity,
+                             online);
+        } else if (device.address == 6) {
+            updateSensorData(device.address,
+                             state.root_sensor.temperature,
+                             state.root_sensor.humidity,
+                             online);
+        }
+    }
+}
 
 // Helper: find relay controller channel from device table
 RS485Channel getRelayChannel() {
@@ -444,6 +556,20 @@ void handleSystemStatus(AsyncWebServerRequest *request) {
     doc["is_night_mode"] = false;
     doc["current_channel"] = (int)channel;
     doc["channel_name"] = getChannelName(channel);
+    doc["offline_alarm_active"] = offline_alarm_active;
+    JsonArray devices = doc["devices"].to<JsonArray>();
+    for (uint8_t i = 0; i < g_device_count && i < 16; i++) {
+        JsonObject device = devices.add<JsonObject>();
+        device["index"] = i;
+        device["name"] = g_devices[i].name;
+        device["channel"] = getChannelName(g_devices[i].channel);
+        device["address"] = g_devices[i].address;
+        device["type"] = (g_devices[i].type == DEVICE_SENSOR) ? "sensor" : "relay";
+        device["online"] = !device_offline_flags[i];
+        device["offline_alarm"] = device_offline_flags[i];
+        device["fail_count"] = device_fail_counts[i];
+        device["success_count"] = device_success_counts[i];
+    }
     JsonObject canopy = doc["canopy"].to<JsonObject>();
     JsonObject canopyTemp_obj = canopy["temperature"].to<JsonObject>();
     canopyTemp_obj["value"] = state.canopy_sensor.temperature;
@@ -702,6 +828,7 @@ void loop() {
 
             uint8_t buffer[50];
             size_t received_len = rs485Read(current_device.channel, buffer, sizeof(buffer), RESPONSE_TIMEOUT_MS);
+            bool pollOk = false;
 
             if (received_len > 3) {
                 Serial.printf("[%s] RX: ", getChannelName(current_device.channel));
@@ -718,6 +845,7 @@ void loop() {
                         ModbusError me((Error)errorCode);
                         Serial.printf("[%s] Modbus Error: %s\n", getChannelName(current_device.channel), (const char*)me);
                     } else if (response.getServerID() == current_device.address) {
+                        pollOk = true;
                         Serial.printf("[%s] CRC OK - Parsing\n", getChannelName(current_device.channel));
                         if (current_device.type == DEVICE_SENSOR && response.getFunctionCode() == READ_INPUT_REGISTER) {
                             uint16_t temp_raw, humidity_raw;
@@ -761,6 +889,7 @@ void loop() {
                 Serial.printf("[%s] Timeout - no response\n", getChannelName(current_device.channel));
             }
 
+            updateDeviceAlarmState(current_device_index, pollOk);
             current_device_index = (current_device_index + 1) % g_device_count;
             setModbusBusy(false);
             xSemaphoreGive(modbusMutex);

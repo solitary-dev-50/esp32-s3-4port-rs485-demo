@@ -78,7 +78,7 @@ enum RS485Channel {
 // 系统配置
 // ===================================================================
 #define RELAY_COUNT 16
-#define SENSOR_POLLING_INTERVAL_MS 10000
+#define SENSOR_POLLING_INTERVAL_MS 2000
 
 // ===================================================================
 // 设备类型定义 (Modbus 从机)

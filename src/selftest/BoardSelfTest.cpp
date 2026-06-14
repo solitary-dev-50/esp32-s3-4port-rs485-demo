@@ -20,6 +20,8 @@ extern const char* getChannelName(uint8_t ch);
 
 static const int SELFTEST_DEVICE_RETRIES = 3;
 static const uint32_t SELFTEST_READ_TIMEOUT_MS = RESPONSE_TIMEOUT_MS;
+static const uint16_t SELFTEST_ALARM_LED_COLOR_HOLD_MS = 800;
+static const uint16_t SELFTEST_ALARM_LED_OFF_HOLD_MS = 150;
 
 // 2812 / WS2812 style single LED settings
 static const rmt_channel_t SELFTEST_LED_RMT_CHANNEL = RMT_CHANNEL_0;
@@ -37,7 +39,7 @@ static const uint16_t WS2812_T0L = 36;  // 36 * 25ns = 900ns
 static const uint16_t WS2812_T1H = 32;  // 32 * 25ns = 800ns
 static const uint16_t WS2812_T1L = 18;  // 18 * 25ns = 450ns
 
-static void buzzerBeep(uint16_t freqHz, uint16_t durationMs) {
+void boardBuzzerBeep(uint16_t freqHz, uint16_t durationMs) {
     if (freqHz == 0 || durationMs == 0) {
         digitalWrite(PIN_BUZZER, LOW);
         return;
@@ -119,7 +121,7 @@ static void buildWs2812Items(uint8_t r, uint8_t g, uint8_t b, rmt_item32_t* item
     }
 }
 
-static bool setAlarmLedColor(uint8_t r, uint8_t g, uint8_t b) {
+bool boardSetAlarmLedColor(uint8_t r, uint8_t g, uint8_t b) {
     if (!initLedRmt()) {
         return false;
     }
@@ -168,7 +170,7 @@ void BoardSelfTest::testBuzzer(BoardSelfTestResult& r) {
 
     // 2.5kHz / 200ms. Works better than a single DC HIGH pulse,
     // especially if the buzzer is passive.
-    buzzerBeep(2500, 200);
+    boardBuzzerBeep(2500, 200);
 
     r.buzzerTriggered = true;
     Serial.println("[SELFTEST][BUZZER] beep triggered");
@@ -185,20 +187,20 @@ void BoardSelfTest::testAlarmLed(BoardSelfTestResult& r) {
     bool ok = true;
 
     // Red
-    ok = setAlarmLedColor(60, 0, 0) && ok;
-    delay(200);
+    ok = boardSetAlarmLedColor(60, 0, 0) && ok;
+    delay(SELFTEST_ALARM_LED_COLOR_HOLD_MS);
 
     // Green
-    ok = setAlarmLedColor(0, 60, 0) && ok;
-    delay(200);
+    ok = boardSetAlarmLedColor(0, 60, 0) && ok;
+    delay(SELFTEST_ALARM_LED_COLOR_HOLD_MS);
 
     // Blue
-    ok = setAlarmLedColor(0, 0, 60) && ok;
-    delay(200);
+    ok = boardSetAlarmLedColor(0, 0, 60) && ok;
+    delay(SELFTEST_ALARM_LED_COLOR_HOLD_MS);
 
     // Off
-    ok = setAlarmLedColor(0, 0, 0) && ok;
-    delay(50);
+    ok = boardSetAlarmLedColor(0, 0, 0) && ok;
+    delay(SELFTEST_ALARM_LED_OFF_HOLD_MS);
 
     r.alarmLedTriggered = ok;
 
@@ -358,7 +360,7 @@ BoardSelfTestResult BoardSelfTest::run() {
     // Final short beep. PASS = 1 beep, WARN = 2 beeps.
     uint8_t beeps = result.allPassed ? 1 : 2;
     for (uint8_t i = 0; i < beeps; i++) {
-        buzzerBeep(2500, 120);
+        boardBuzzerBeep(2500, 120);
         delay(180);
     }
 
@@ -366,12 +368,12 @@ BoardSelfTestResult BoardSelfTest::run() {
     // PASS: green 1 second, then off.
     // WARN: yellow 1 second, then off.
     if (result.allPassed) {
-        setAlarmLedColor(0, 50, 0);
+        boardSetAlarmLedColor(0, 50, 0);
     } else {
-        setAlarmLedColor(50, 35, 0);
+        boardSetAlarmLedColor(50, 35, 0);
     }
     delay(1000);
-    setAlarmLedColor(0, 0, 0);
+    boardSetAlarmLedColor(0, 0, 0);
 
     Serial.println("[SELFTEST] Done\n");
     return result;
